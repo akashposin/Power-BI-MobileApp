@@ -17,10 +17,12 @@ const HeaderComponent = ({
   actionStyle,
   actionPress,
   actionIconColor,
+  actionSize,
   actionIcon2,
   actionStyle2,
   actionPress2,
   actionIconColor2,
+  actionSize2,
   visible,
 }) => {
   return (
@@ -41,13 +43,15 @@ const HeaderComponent = ({
         style={actionStyle}
         onPress={actionPress}
         color={actionIconColor}
+        size={actionSize}
       />
-      {/* <Appbar.Action
+      <Appbar.Action
         icon={actionIcon2}
         style={actionStyle2}
         onPress={actionPress2}
         color={actionIconColor2}
-      /> */}
+        size={actionSize2}
+      />
 
       {children}
     </Appbar.Header>

@@ -5,21 +5,27 @@ import {
   Text,
   StatusBar,
   TouchableOpacity,
+  ScrollView,
 } from 'react-native';
 import {Marker, PROVIDER_GOOGLE, Geojson} from 'react-native-maps';
 import MapView from 'react-native-map-clustering';
 
 import statesPopulation from '../../assets/us-population-geographical-data/states-population.json';
 import countiesPopulation from '../../assets/us-population-geographical-data/counties-population.json';
-import clusteringMarkers from '../../assets/us-population-geographical-data/clustering_markers.json';
+// Following line contains 5000 markers (uncomment it)
+// import clusteringMarkers from '../../assets/us-population-geographical-data/clustering_markers.json';
+
+// Following lines contains 500 markers (uncomment it)
+import clusteringMarkers from '../../assets/us-population-geographical-data/clustering_markers_500.json';
 
 import {theme} from '../constants';
 import {Container, HeaderComponent} from '../components';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {Searchbar} from 'react-native-paper';
+import {Checkbox, Searchbar} from 'react-native-paper';
 import {moderateScale} from 'react-native-size-matters';
 import CircleTransition from 'react-native-circle-reveal-view';
 import AntDesign from 'react-native-vector-icons/AntDesign';
+import {filterCategories, filterTypes} from '../constants/filters';
 
 const ASPECT_RATIO = theme.Sizes.width / theme.Sizes.height;
 const LATITUDE_DELTA = 50;
@@ -45,9 +51,11 @@ const Maps = () => {
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [searchedData, setSearchedData] = useState([]);
+  const [selectedFilterType, setSelectedFilterType] = useState('Site Status');
 
   const mapRef = useRef();
   const headerRef = useRef();
+  const filtersRef = useRef();
 
   const onRegionChangeComplete = mapRegion => {
     setRegion({
@@ -122,6 +130,11 @@ const Maps = () => {
         title={'Power BI'}
         actionIcon="magnify"
         actionPress={showSearchBar}
+        actionSize={theme.Sizes.F26}
+        actionIcon2="filter-outline"
+        actionPress2={showFilters}
+        actionStyle2={{marginLeft: 0}}
+        actionSize2={theme.Sizes.F26}
       />
     );
   };
@@ -136,10 +149,14 @@ const Maps = () => {
     setSearchQuery('');
   };
 
+  const showFilters = () => {
+    filtersRef.current.toggle();
+  };
+
   const searchText = query => {
     if (query) {
       const data = clusteringMarkers.features.filter(item => {
-        const name = item.properties.location.toLowerCase();
+        const name = item.properties.location_id.toLowerCase();
         return name.indexOf(query.toLowerCase()) > -1;
       });
       setSearchedData(data);
@@ -203,7 +220,7 @@ const Maps = () => {
           paddingHorizontal: theme.Sizes.S10,
         }}>
         <Text style={{fontSize: theme.Sizes.F14}}>
-          {item.properties.location}
+          {item.properties.location_id}
         </Text>
       </TouchableOpacity>
     );
@@ -232,6 +249,144 @@ const Maps = () => {
           keyExtractor={(_, index) => index.toString()}
         />
       </Container>
+    );
+  };
+
+  const closeFilters = () => {
+    filtersRef.current.collapse();
+  };
+
+  const applyFilters = () => {
+    filtersRef.current.collapse();
+  };
+
+  const renderFilters = () => {
+    return (
+      <CircleTransition
+        ref={filtersRef}
+        backgroundColor={theme.Colors.white}
+        duration={700}
+        style={{
+          position: 'absolute',
+          top: StatusBar.currentHeight,
+          left: 0,
+          right: 0,
+          bottom: 0,
+        }}
+        revealPositionArray={{top: true, right: true}}>
+        <Container>
+          <Container
+            row
+            center
+            flex={false}
+            style={{height: theme.Sizes.S14 * 3, marginTop: theme.Sizes.S12}}>
+            <Text
+              style={{
+                fontSize: theme.Sizes.F16,
+                fontWeight: 'bold',
+                marginLeft: theme.Sizes.S14 * 2,
+                flex: 1,
+              }}>
+              Filters
+            </Text>
+            <TouchableOpacity
+              activeOpacity={0.4}
+              style={{
+                width: theme.Sizes.width / 5,
+                marginRight: theme.Sizes.S14,
+              }}>
+              <Text
+                style={{
+                  fontSize: theme.Sizes.F14,
+                  fontWeight: 'bold',
+                  textTransform: 'uppercase',
+                  textAlign: 'center',
+                  color: theme.Colors.red,
+                }}>
+                clear all
+              </Text>
+            </TouchableOpacity>
+          </Container>
+
+          <Container row>
+            <Container color="lightgrey" flex={1}>
+              {filterTypes.map(type => (
+                <TouchableOpacity
+                  key={type.id}
+                  activeOpacity={0.4}
+                  style={{
+                    marginLeft: theme.Sizes.S14,
+                    marginTop: theme.Sizes.S14,
+                  }}
+                  onPress={() => setSelectedFilterType(type.type)}>
+                  <Text style={{fontWeight: 'bold'}}>{type.type}</Text>
+                </TouchableOpacity>
+              ))}
+            </Container>
+
+            <Container flex={2}>
+              <ScrollView>
+                {filterCategories.map(category => {
+                  if (selectedFilterType === category.type) {
+                    return (
+                      <Container row center flex={false} key={category.id}>
+                        <Checkbox
+                          status="checked"
+                          color={theme.Colors.blue}
+                          onPress={() => console.log(category.name)}
+                        />
+                        <Text>{category.name}</Text>
+                      </Container>
+                    );
+                  }
+                })}
+              </ScrollView>
+            </Container>
+          </Container>
+
+          <Container
+            row
+            center
+            flex={false}
+            style={{height: theme.Sizes.S14 * 3}}>
+            <TouchableOpacity
+              activeOpacity={0.4}
+              style={{
+                width: theme.Sizes.width / 5,
+                marginLeft: theme.Sizes.S14 * 2,
+                flex: 1,
+              }}
+              onPress={closeFilters}>
+              <Text
+                style={{
+                  fontSize: theme.Sizes.F14,
+                  fontWeight: 'bold',
+                  textTransform: 'uppercase',
+                }}>
+                close
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.4}
+              style={{
+                width: theme.Sizes.width / 5,
+                marginRight: theme.Sizes.S14,
+              }}
+              onPress={applyFilters}>
+              <Text
+                style={{
+                  fontSize: theme.Sizes.F14,
+                  fontWeight: 'bold',
+                  textTransform: 'uppercase',
+                  textAlign: 'center',
+                  color: theme.Colors.red,
+                }}>
+                apply
+              </Text>
+            </TouchableOpacity>
+          </Container>
+        </Container>
+      </CircleTransition>
     );
   };
 
@@ -278,7 +433,8 @@ const Maps = () => {
     <SafeAreaView style={{flex: 1}}>
       {renderHeader()}
       {renderSearchBar()}
-      {renderMap()}
+      {renderFilters()}
+      {/* {renderMap()} */}
       {searchedData.length > 0 && renderSearchedData()}
     </SafeAreaView>
   );
