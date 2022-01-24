@@ -434,7 +434,7 @@ const Maps = () => {
       {renderHeader()}
       {renderSearchBar()}
       {renderFilters()}
-      {/* {renderMap()} */}
+      {renderMap()}
       {searchedData.length > 0 && renderSearchedData()}
     </SafeAreaView>
   );
