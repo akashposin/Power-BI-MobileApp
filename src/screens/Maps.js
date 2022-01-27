@@ -1,4 +1,4 @@
-import React, {useState, useRef} from 'react';
+import React, {useState, useRef, useEffect} from 'react';
 import {
   FlatList,
   StyleSheet,
@@ -6,9 +6,28 @@ import {
   StatusBar,
   TouchableOpacity,
   ScrollView,
+  Keyboard,
 } from 'react-native';
 import {Marker, PROVIDER_GOOGLE, Geojson} from 'react-native-maps';
 import MapView from 'react-native-map-clustering';
+import {SafeAreaView} from 'react-native-safe-area-context';
+import {Checkbox, FAB, Searchbar} from 'react-native-paper';
+import {moderateScale} from 'react-native-size-matters';
+import Feather from 'react-native-vector-icons/Feather';
+import FontAwesome from 'react-native-vector-icons/FontAwesome';
+import {theme} from '../constants';
+import {Container} from '../components';
+import {
+  filterCountry,
+  filterSiteStatus,
+  filterSiteSubType,
+  filterSiteType,
+  filterTypes,
+  filterVendor,
+} from '../constants/filters';
+import ModalComponent from '../components/ModalComponent';
+
+import * as Animatable from 'react-native-animatable';
 
 import statesPopulation from '../../assets/us-population-geographical-data/states-population.json';
 import countiesPopulation from '../../assets/us-population-geographical-data/counties-population.json';
@@ -17,15 +36,6 @@ import countiesPopulation from '../../assets/us-population-geographical-data/cou
 
 // Following lines contains 500 markers (uncomment it)
 import clusteringMarkers from '../../assets/us-population-geographical-data/clustering_markers_500.json';
-
-import {theme} from '../constants';
-import {Container, HeaderComponent} from '../components';
-import {SafeAreaView} from 'react-native-safe-area-context';
-import {Checkbox, Searchbar} from 'react-native-paper';
-import {moderateScale} from 'react-native-size-matters';
-import CircleTransition from 'react-native-circle-reveal-view';
-import AntDesign from 'react-native-vector-icons/AntDesign';
-import {filterCategories, filterTypes} from '../constants/filters';
 
 const ASPECT_RATIO = theme.Sizes.width / theme.Sizes.height;
 const LATITUDE_DELTA = 50;
@@ -52,10 +62,14 @@ const Maps = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchedData, setSearchedData] = useState([]);
   const [selectedFilterType, setSelectedFilterType] = useState('Site Status');
+  const [modalVisible, setModalVisible] = useState(false);
+  const [visibleSearchBar, setVisibleSearchBar] = useState(false);
+  const [visibleSearchButton, setVisibleSearchButton] = useState(false);
+
+  const [siteStatusAll, setSiteStatusAll] = useState(false);
+  const [filterSiteStatusData, setFilterSiteStatusData] = useState([]);
 
   const mapRef = useRef();
-  const headerRef = useRef();
-  const filtersRef = useRef();
 
   const onRegionChangeComplete = mapRegion => {
     setRegion({
@@ -124,35 +138,6 @@ const Maps = () => {
       : '#0000FF';
   };
 
-  const renderHeader = () => {
-    return (
-      <HeaderComponent
-        title={'Power BI'}
-        actionIcon="magnify"
-        actionPress={showSearchBar}
-        actionSize={theme.Sizes.F26}
-        actionIcon2="filter-outline"
-        actionPress2={showFilters}
-        actionStyle2={{marginLeft: 0}}
-        actionSize2={theme.Sizes.F26}
-      />
-    );
-  };
-
-  const showSearchBar = () => {
-    headerRef.current.toggle();
-  };
-
-  const hideSearchBar = () => {
-    headerRef.current.collapse();
-    setSearchedData([]);
-    setSearchQuery('');
-  };
-
-  const showFilters = () => {
-    filtersRef.current.toggle();
-  };
-
   const searchText = query => {
     if (query) {
       const data = clusteringMarkers.features.filter(item => {
@@ -168,45 +153,118 @@ const Maps = () => {
     setSearchedData([]);
   };
 
-  const renderSearchBar = () => {
+  const closeIconPress = () => {
+    setVisibleSearchBar(false);
+    setVisibleSearchButton(false);
+    Keyboard.dismiss();
+  };
+
+  const showSearchBar = () => {
+    setVisibleSearchBar(true);
+    setVisibleSearchButton(true);
+  };
+  const renderSearchButton = () => {
     return (
-      <CircleTransition
-        ref={headerRef}
-        backgroundColor={theme.Colors.white}
-        duration={700}
+      <Animatable.View
+        animation={visibleSearchButton ? 'fadeOutRight' : 'fadeInRight'}
         style={{
           position: 'absolute',
-          top: StatusBar.currentHeight,
-          left: 0,
-          right: 0,
-          bottom: 0,
-        }}
-        revealPositionArray={{top: true, right: true}}>
+          top: StatusBar.currentHeight + theme.Sizes.S14 * 1.4,
+          right: theme.Sizes.S10,
+          zIndex: 10,
+        }}>
+        <FAB
+          icon={() => (
+            <FontAwesome
+              name="search"
+              size={theme.Sizes.F20}
+              color={theme.Colors.blue}
+            />
+          )}
+          color={theme.Colors.blue}
+          style={{
+            width: theme.Sizes.S14 * 3.4,
+            height: theme.Sizes.S14 * 3.4,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: theme.Colors.lightgrey2,
+          }}
+          onPress={showSearchBar}
+        />
+      </Animatable.View>
+    );
+  };
+
+  const renderSearchBar = () => {
+    return (
+      <Animatable.View
+        animation={visibleSearchBar ? 'fadeInLeft' : 'fadeOutLeft'}
+        style={{
+          position: 'absolute',
+          top: StatusBar.currentHeight + theme.Sizes.S14 * 1.5,
+          left: theme.Sizes.S14,
+          zIndex: 10,
+        }}>
         <Searchbar
           placeholder="Search..."
           onChangeText={text => {
             setSearchQuery(text);
             searchText(text);
           }}
-          autoFocus={true}
           value={searchQuery}
-          icon="keyboard-backspace"
-          onIconPress={hideSearchBar}
-          clearIcon={() => (
-            <AntDesign
-              name="close"
-              size={theme.Sizes.F24}
-              color={theme.Colors.black}
-              onPress={clearIconPress}
-            />
-          )}
-          style={{height: 56}}
+          icon="close"
+          onIconPress={closeIconPress}
+          clearIcon={() =>
+            searchQuery !== '' && (
+              <Feather
+                name="delete"
+                size={theme.Sizes.F20}
+                color={theme.Colors.grey}
+                onPress={clearIconPress}
+              />
+            )
+          }
+          style={{
+            width: theme.Sizes.width * 0.9,
+            borderRadius: theme.Sizes.radius / 3,
+            backgroundColor: theme.Colors.lightgrey2,
+          }}
           inputStyle={{
             fontSize: theme.Sizes.F14,
             letterSpacing: moderateScale(0.5),
           }}
         />
-      </CircleTransition>
+      </Animatable.View>
+    );
+  };
+
+  const showFilters = () => {
+    setModalVisible(true);
+  };
+
+  const renderFilterButton = () => {
+    return (
+      <Animatable.View
+        animation="fadeInRight"
+        style={{
+          position: 'absolute',
+          top: StatusBar.currentHeight + theme.Sizes.S14 * 5.5,
+          right: theme.Sizes.S10,
+          zIndex: 9,
+        }}>
+        <FAB
+          icon="filter"
+          color={theme.Colors.blue}
+          style={{
+            width: theme.Sizes.S14 * 3.4,
+            height: theme.Sizes.S14 * 3.4,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: theme.Colors.lightgrey2,
+          }}
+          onPress={showFilters}
+        />
+      </Animatable.View>
     );
   };
 
@@ -232,12 +290,12 @@ const Maps = () => {
         color={'white'}
         style={{
           position: 'absolute',
-          width: '80%',
-          top: StatusBar.currentHeight + 56,
-          alignSelf: 'center',
+          width: '70%',
+          top: StatusBar.currentHeight + theme.Sizes.S14 * 4.8,
+          left: theme.Sizes.S14 * 3,
           maxHeight: theme.Sizes.height / 2.5,
           borderColor: theme.Colors.grey,
-          borderWidth: 0.7,
+          borderWidth: 0,
           borderBottomLeftRadius: theme.Sizes.radius / 5,
           borderBottomRightRadius: theme.Sizes.radius / 5,
         }}>
@@ -253,140 +311,260 @@ const Maps = () => {
   };
 
   const closeFilters = () => {
-    filtersRef.current.collapse();
+    setModalVisible(false);
   };
 
   const applyFilters = () => {
-    filtersRef.current.collapse();
+    setModalVisible(false);
+  };
+
+  const clearFilters = () => {};
+
+  useEffect(() => {
+    setFilterSiteStatusData(filterSiteStatus);
+  }, []);
+
+  const selectAllSiteStatus = (selected, isChecked) => {
+    if (selected === 'Select All') {
+      let tempData = filterSiteStatusData.map(data => {
+        return {...data, isChecked: !siteStatusAll};
+      });
+      setFilterSiteStatusData(tempData);
+    } else {
+      let tempData = filterSiteStatusData.map(data =>
+        data.name === selected ? {...data, isChecked: !isChecked} : data,
+      );
+      setFilterSiteStatusData(tempData);
+    }
   };
 
   const renderFilters = () => {
     return (
-      <CircleTransition
-        ref={filtersRef}
-        backgroundColor={theme.Colors.white}
-        duration={700}
-        style={{
-          position: 'absolute',
-          top: StatusBar.currentHeight,
-          left: 0,
-          right: 0,
-          bottom: 0,
-        }}
-        revealPositionArray={{top: true, right: true}}>
-        <Container>
-          <Container
-            row
-            center
-            flex={false}
-            style={{height: theme.Sizes.S14 * 3, marginTop: theme.Sizes.S12}}>
+      <ModalComponent
+        visible={modalVisible}
+        style={{height: theme.Sizes.height * 0.7}}>
+        <Container
+          row
+          center
+          flex={false}
+          style={{height: theme.Sizes.S14 * 3}}>
+          <Text
+            style={{
+              fontSize: theme.Sizes.F16,
+              fontWeight: 'bold',
+              marginLeft: theme.Sizes.S14 * 2,
+              flex: 1,
+            }}>
+            {'Filters: '}{' '}
+            <Text style={{color: theme.Colors.blue}}>{selectedFilterType}</Text>
+          </Text>
+          <TouchableOpacity
+            activeOpacity={0.4}
+            style={{
+              width: theme.Sizes.width / 5,
+              marginRight: theme.Sizes.S14,
+            }}
+            onPress={clearFilters}>
             <Text
               style={{
-                fontSize: theme.Sizes.F16,
+                fontSize: theme.Sizes.F14,
                 fontWeight: 'bold',
-                marginLeft: theme.Sizes.S14 * 2,
-                flex: 1,
+                textTransform: 'uppercase',
+                textAlign: 'center',
+                color: theme.Colors.red,
               }}>
-              Filters
+              clear all
             </Text>
-            <TouchableOpacity
-              activeOpacity={0.4}
-              style={{
-                width: theme.Sizes.width / 5,
-                marginRight: theme.Sizes.S14,
-              }}>
-              <Text
+          </TouchableOpacity>
+        </Container>
+
+        <Container row>
+          <Container color="lightgrey2" flex={1}>
+            {filterTypes.map((type, index) => (
+              <TouchableOpacity
+                key={index}
+                activeOpacity={0.4}
                 style={{
-                  fontSize: theme.Sizes.F14,
-                  fontWeight: 'bold',
-                  textTransform: 'uppercase',
-                  textAlign: 'center',
-                  color: theme.Colors.red,
-                }}>
-                clear all
-              </Text>
-            </TouchableOpacity>
+                  paddingLeft: theme.Sizes.S14,
+                  marginTop: theme.Sizes.S10,
+                }}
+                onPress={() => setSelectedFilterType(type.type)}>
+                <Text
+                  style={{
+                    fontWeight: 'bold',
+                  }}>
+                  {type.type}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </Container>
 
-          <Container row>
-            <Container color="lightgrey" flex={1}>
-              {filterTypes.map(type => (
-                <TouchableOpacity
-                  key={type.id}
-                  activeOpacity={0.4}
-                  style={{
-                    marginLeft: theme.Sizes.S14,
-                    marginTop: theme.Sizes.S14,
-                  }}
-                  onPress={() => setSelectedFilterType(type.type)}>
-                  <Text style={{fontWeight: 'bold'}}>{type.type}</Text>
-                </TouchableOpacity>
-              ))}
-            </Container>
-
-            <Container flex={2}>
-              <ScrollView>
-                {filterCategories.map(category => {
-                  if (selectedFilterType === category.type) {
+          <Container flex={2}>
+            <ScrollView>
+              {selectedFilterType === 'Site Status' && (
+                <>
+                  <Container row center flex={false}>
+                    <Checkbox
+                      status={
+                        !filterSiteStatusData.some(
+                          siteStatus => siteStatus?.isChecked !== true,
+                        )
+                          ? 'checked'
+                          : 'unchecked'
+                      }
+                      color={theme.Colors.blue}
+                      onPress={() => {
+                        setSiteStatusAll(!siteStatusAll);
+                        selectAllSiteStatus('Select All');
+                      }}
+                    />
+                    <Text>Select All</Text>
+                  </Container>
+                  {filterSiteStatusData.map((siteStatus, index) => {
                     return (
-                      <Container row center flex={false} key={category.id}>
+                      <Container row center flex={false} key={index}>
                         <Checkbox
-                          status="checked"
+                          status={
+                            siteStatus.isChecked ? 'checked' : 'unchecked'
+                          }
                           color={theme.Colors.blue}
-                          onPress={() => console.log(category.name)}
+                          onPress={() =>
+                            selectAllSiteStatus(
+                              siteStatus.name,
+                              siteStatus.isChecked,
+                            )
+                          }
                         />
-                        <Text>{category.name}</Text>
+                        <Text>{siteStatus.name}</Text>
                       </Container>
                     );
-                  }
-                })}
-              </ScrollView>
-            </Container>
-          </Container>
+                  })}
+                </>
+              )}
+              {selectedFilterType === 'Country' &&
+                filterCountry.map((country, index) => (
+                  <Container row center flex={false} key={index}>
+                    <Checkbox
+                      status={'checked'}
+                      color={theme.Colors.blue}
+                      onPress={() => {}}
+                    />
+                    <Text>{country.name}</Text>
+                  </Container>
+                ))}
+              {selectedFilterType === 'Site Type' && (
+                <>
+                  <Container row center flex={false}>
+                    <Checkbox
+                      status={'checked'}
+                      color={theme.Colors.blue}
+                      onPress={() => {}}
+                    />
+                    <Text>Select All</Text>
+                  </Container>
+                  {filterSiteType.map((siteType, index) => (
+                    <Container row center flex={false} key={index}>
+                      <Checkbox
+                        status={'checked'}
+                        color={theme.Colors.blue}
+                        onPress={() => {}}
+                      />
+                      <Text>{siteType.name}</Text>
+                    </Container>
+                  ))}
+                </>
+              )}
+              {selectedFilterType === 'Site Subtype' && (
+                <>
+                  <Container row center flex={false}>
+                    <Checkbox
+                      status={'checked'}
+                      color={theme.Colors.blue}
+                      onPress={() => {}}
+                    />
+                    <Text>Select All</Text>
+                  </Container>
+                  {filterSiteSubType.map((siteSubType, index) => (
+                    <Container row center flex={false} key={index}>
+                      <Checkbox
+                        status={'checked'}
+                        color={theme.Colors.blue}
+                        onPress={() => {}}
+                      />
+                      <Text>{siteSubType.name}</Text>
+                    </Container>
+                  ))}
+                </>
+              )}
+              {selectedFilterType === 'Vendor' && (
+                <>
+                  <Container row center flex={false}>
+                    <Checkbox
+                      status={'checked'}
+                      color={theme.Colors.blue}
+                      onPress={() => {}}
+                    />
+                    <Text>Select All</Text>
+                  </Container>
 
-          <Container
-            row
-            center
-            flex={false}
-            style={{height: theme.Sizes.S14 * 3}}>
-            <TouchableOpacity
-              activeOpacity={0.4}
-              style={{
-                width: theme.Sizes.width / 5,
-                marginLeft: theme.Sizes.S14 * 2,
-                flex: 1,
-              }}
-              onPress={closeFilters}>
-              <Text
-                style={{
-                  fontSize: theme.Sizes.F14,
-                  fontWeight: 'bold',
-                  textTransform: 'uppercase',
-                }}>
-                close
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              activeOpacity={0.4}
-              style={{
-                width: theme.Sizes.width / 5,
-                marginRight: theme.Sizes.S14,
-              }}
-              onPress={applyFilters}>
-              <Text
-                style={{
-                  fontSize: theme.Sizes.F14,
-                  fontWeight: 'bold',
-                  textTransform: 'uppercase',
-                  textAlign: 'center',
-                  color: theme.Colors.red,
-                }}>
-                apply
-              </Text>
-            </TouchableOpacity>
+                  {filterVendor.map((vendor, index) => (
+                    <Container row center flex={false} key={index}>
+                      <Checkbox
+                        status={'checked'}
+                        color={theme.Colors.blue}
+                        onPress={() => {}}
+                      />
+                      <Text>{vendor.name}</Text>
+                    </Container>
+                  ))}
+                </>
+              )}
+            </ScrollView>
           </Container>
         </Container>
-      </CircleTransition>
+
+        <Container
+          row
+          center
+          flex={false}
+          style={{height: theme.Sizes.S14 * 3}}>
+          <TouchableOpacity
+            activeOpacity={0.4}
+            style={{
+              width: theme.Sizes.width / 5,
+              marginLeft: theme.Sizes.S14 * 2,
+              flex: 1,
+            }}
+            onPress={closeFilters}>
+            <Text
+              style={{
+                fontSize: theme.Sizes.F14,
+                fontWeight: 'bold',
+                textTransform: 'uppercase',
+              }}>
+              close
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.4}
+            style={{
+              width: theme.Sizes.width / 5,
+              marginRight: theme.Sizes.S14,
+            }}
+            onPress={applyFilters}>
+            <Text
+              style={{
+                fontSize: theme.Sizes.F14,
+                fontWeight: 'bold',
+                textTransform: 'uppercase',
+                textAlign: 'center',
+                color: theme.Colors.red,
+              }}>
+              apply
+            </Text>
+          </TouchableOpacity>
+        </Container>
+      </ModalComponent>
     );
   };
 
@@ -431,10 +609,11 @@ const Maps = () => {
 
   return (
     <SafeAreaView style={{flex: 1}}>
-      {renderHeader()}
+      {renderSearchButton()}
       {renderSearchBar()}
+      {renderFilterButton()}
       {renderFilters()}
-      {renderMap()}
+      {/* {renderMap()} */}
       {searchedData.length > 0 && renderSearchedData()}
     </SafeAreaView>
   );

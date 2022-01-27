@@ -1,7 +1,9 @@
+import {NavigationContainer} from '@react-navigation/native';
 import React from 'react';
 import {StatusBar, useColorScheme, LogBox} from 'react-native';
 
 import {SafeAreaProvider} from 'react-native-safe-area-context';
+import TabsNavigator from './src/navigation/TabsNavigator';
 
 import Maps from './src/screens/Maps';
 
@@ -16,8 +18,9 @@ const App = () => {
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
         translucent={true}
       />
-
-      <Maps />
+      <NavigationContainer>
+        <TabsNavigator />
+      </NavigationContainer>
     </SafeAreaProvider>
   );
 };
